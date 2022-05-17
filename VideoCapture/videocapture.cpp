@@ -156,6 +156,14 @@ void VideoCapture::retrieveFrame()
 
             gst_sample_unref(lSample);
         }
+        else
+        {
+            QImage lImage(mWidth, mHeight, QImage::Format::Format_RGB888);
+
+            lImage.fill(Qt::black);
+
+            emit onNewFrame(lImage);
+        }
     }
 
     clean();
