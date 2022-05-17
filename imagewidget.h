@@ -16,7 +16,7 @@ public:
 
 private:
     QImage mImage;
-    QMutexLocker mLocker;
+    QMutexLocker *mLocker;
     QMutex mMutex;
 
 protected:

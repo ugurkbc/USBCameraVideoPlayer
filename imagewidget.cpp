@@ -1,18 +1,17 @@
 #include "imagewidget.h"
 #include <QPainter>
 #include <QPaintEvent>
-#include <QDebug>
 
 ImageWidget::ImageWidget(QWidget *parent)
     : QWidget(parent)
-    , mLocker(&mMutex)
 {
-
+    mLocker = new QMutexLocker(&mMutex);
 }
 
 ImageWidget::~ImageWidget()
 {
-    mLocker.unlock();
+    mLocker->unlock();
+    delete mLocker;
 }
 
 void ImageWidget::paintEvent(QPaintEvent *event)
@@ -21,12 +20,12 @@ void ImageWidget::paintEvent(QPaintEvent *event)
     QPainter lPainter(this);
     lPainter.drawImage((rect().bottomRight() - mImage.rect().bottomRight()) / 2, mImage);
 
-    mLocker.unlock();
+    mLocker->unlock();
 }
 
 void ImageWidget::newImage(QImage pImage)
 {
-    mLocker.relock();
+    mLocker->relock();
 
     mImage = pImage;
 
