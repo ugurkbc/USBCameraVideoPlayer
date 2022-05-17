@@ -27,15 +27,18 @@ SOURCES += \
         main.cpp \
         mainwindow.cpp \
         VideoCapture/videocapture.cpp \
-    imagewidget.cpp
+    imagewidget.cpp \
+    VideoControlWidget/videocontrolwidget.cpp
 
 HEADERS += \
         mainwindow.h \
         VideoCapture/videocapture.h \
-    imagewidget.h
+    imagewidget.h \
+    VideoControlWidget/videocontrolwidget.h
 
 FORMS += \
-        mainwindow.ui
+        mainwindow.ui \
+    VideoControlWidget/videocontrolwidget.ui
 
 
 unix: CONFIG += link_pkgconfig

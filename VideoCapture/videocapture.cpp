@@ -8,6 +8,14 @@ const QString VideoCapture::PREFIX_DEVICE_PATH = "/dev/video";
 const QString VideoCapture::APPSINK_NAME = "mysink";
 bool VideoCapture::GST_INIT = false;
 
+enum VideoState{
+PENDING_ = 0,
+NULL_ = 1,
+READY_ = 2,
+PAUSED_ = 3,
+PLAYING_ = 4
+};
+
 VideoCapture::VideoCapture(QObject *parent) : QObject(parent)
 {
     this->moveToThread(&mThread);
@@ -23,7 +31,7 @@ VideoCapture::VideoCapture(QObject *parent) : QObject(parent)
 
 VideoCapture::~VideoCapture()
 {
-    mPlay = false;
+    close();
 
     mThread.quit();
     mThread.wait();
@@ -46,18 +54,20 @@ bool VideoCapture::pause()
     return true;
 }
 
-bool VideoCapture::destroy()
+bool VideoCapture::close()
 {
+    bool lFlag = true;
+
     if(!changeState(GST_STATE_NULL))
     {
-        qDebug() << "Destorying Failed";
+        qDebug() << "Closing Failed";
 
-        return false;
+        lFlag = false;
     }
 
     mPlay = false;
 
-    return true;
+    return lFlag;
 }
 
 bool VideoCapture::play()
@@ -143,9 +153,9 @@ void VideoCapture::retrieveFrame()
 
                 gst_buffer_unmap(lBuf, &lInfo);
             }
-        }
 
-        gst_sample_unref(lSample);
+            gst_sample_unref(lSample);
+        }
     }
 
     clean();
@@ -172,6 +182,8 @@ bool VideoCapture::changeState(int pState)
        qDebug() << "Failed to go into the state";
        return false;
      }
+
+    emit onStateChange(pState);
 
     return true;
 }

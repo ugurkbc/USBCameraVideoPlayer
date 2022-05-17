@@ -16,7 +16,7 @@ public:
 public slots:
     void setDevice(int pDeviceNumber);
     bool pause();
-    bool destroy();
+    bool close();
     bool play();
 
 private:
@@ -49,6 +49,7 @@ private:
     static const int INVALID = -1;
 signals:
     void onNewFrame(QImage);
+    void onStateChange(int);
 };
 
 #endif // VIDEOCAPTURE_H
