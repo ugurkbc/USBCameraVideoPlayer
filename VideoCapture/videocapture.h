@@ -14,10 +14,9 @@ public:
     ~VideoCapture();
 
 public slots:
-    void setDevice(int pDeviceNumber);
     bool pause();
     bool close();
-    bool play();
+    bool play(int pDeviceNumber);
 
 private:
     QString createPipeline();
@@ -45,7 +44,6 @@ private:
 private:
     static const QString PREFIX_DEVICE_PATH;
     static const QString APPSINK_NAME;
-    static bool GST_INIT;
     static const int INVALID = -1;
 signals:
     void onNewFrame(QImage);

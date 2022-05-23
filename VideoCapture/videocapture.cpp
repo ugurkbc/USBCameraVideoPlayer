@@ -6,15 +6,7 @@
 
 const QString VideoCapture::PREFIX_DEVICE_PATH = "/dev/video";
 const QString VideoCapture::APPSINK_NAME = "mysink";
-bool VideoCapture::GST_INIT = false;
-
-enum VideoState{
-PENDING_ = 0,
-NULL_ = 1,
-READY_ = 2,
-PAUSED_ = 3,
-PLAYING_ = 4
-};
+bool GST_INIT = false;
 
 VideoCapture::VideoCapture(QObject *parent) : QObject(parent)
 {
@@ -31,15 +23,13 @@ VideoCapture::VideoCapture(QObject *parent) : QObject(parent)
 
 VideoCapture::~VideoCapture()
 {
-    close();
+    if(mInit)
+    {
+        close();
+    }
 
     mThread.quit();
     mThread.wait();
-}
-
-void VideoCapture::setDevice(int pDeviceNumber)
-{
-    mDevicePath = PREFIX_DEVICE_PATH + QString::number(pDeviceNumber);
 }
 
 bool VideoCapture::pause()
@@ -70,8 +60,10 @@ bool VideoCapture::close()
     return lFlag;
 }
 
-bool VideoCapture::play()
+bool VideoCapture::play(int pDeviceNumber)
 {
+    mDevicePath = PREFIX_DEVICE_PATH + QString::number(pDeviceNumber);
+
     if(!mInit)
     {
         if(!init()) return false;
@@ -199,9 +191,8 @@ bool VideoCapture::changeState(int pState)
 void VideoCapture::clean()
 {
     gst_object_unref (mPipeline);
+    gst_object_unref (mAppSink);
 
-    mAppSink = nullptr;
-    mPipeline = nullptr;
     mWidth = INVALID;
     mHeight = INVALID;
     mFPS = INVALID;
