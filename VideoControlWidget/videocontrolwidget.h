@@ -17,12 +17,9 @@ public:
     ~VideoControlWidget();
 
     void stateChanged(int pVideoState);
-
 private slots:
     void on_pushButton_video_play_stop_clicked();
-
     void on_pushButton_video_close_clicked();
-
 private:
     Ui::VideoControlWidget *ui;
     VideoCapture *mVideoCapture;

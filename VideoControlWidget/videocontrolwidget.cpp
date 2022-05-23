@@ -17,6 +17,7 @@ VideoControlWidget::VideoControlWidget(VideoCapture *pVideoCapture, QWidget *par
     ,mState(NULL_)
 {
     ui->setupUi(this);
+    connect(mVideoCapture, &VideoCapture::onStateChange, this, &VideoControlWidget::stateChanged, Qt::DirectConnection);
 }
 
 VideoControlWidget::~VideoControlWidget()
@@ -52,8 +53,7 @@ void VideoControlWidget::on_pushButton_video_play_stop_clicked()
 
         if(tFlag)
         {
-            mVideoCapture->setDevice(lNum);
-            mVideoCapture->play();
+            mVideoCapture->play(lNum);
         }
     }
 }
