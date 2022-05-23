@@ -3,6 +3,8 @@
 #include <VideoCapture/videocapture.h>
 #include <imagewidget.h>
 #include <VideoControlWidget/videocontrolwidget.h>
+#include <VideoRecordControlWidget/videorecordcontrolwidget.h>
+#include <VideoWriter/videowriter.h>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -11,18 +13,19 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 
     mVideoCapture = new VideoCapture();
-    mImageWidget = new ImageWidget();
+    mVideoWriter = new VideoWriter();
+    mImageWidget = new ImageWidget(mVideoCapture);
     mVideoControlWidget = new VideoControlWidget(mVideoCapture);
+    mVideoRecordControlWidget = new VideoRecordControlWidget(mVideoWriter, mImageWidget);
 
     ui->verticalLayout_videoarea->addWidget(mImageWidget);
-    ui->verticalLayout_videocontrol->addWidget(mVideoControlWidget, 0, Qt::AlignTop);
-
-    connect(mVideoCapture, &VideoCapture::onNewFrame, mImageWidget, &ImageWidget::newImage, Qt::DirectConnection);
-    connect(mVideoCapture, &VideoCapture::onStateChange, mVideoControlWidget, &VideoControlWidget::stateChanged, Qt::DirectConnection);
+    ui->verticalLayout_videocontrol->addWidget(mVideoControlWidget, 1, Qt::AlignTop);
+    ui->verticalLayout_videocontrol->addWidget(mVideoRecordControlWidget, 1, Qt::AlignTop);
 }
 
 MainWindow::~MainWindow()
 {
     delete mVideoCapture;
+    delete mVideoWriter;
     delete ui;
 }

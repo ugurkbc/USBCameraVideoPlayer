@@ -6,6 +6,8 @@
 class VideoCapture;
 class ImageWidget;
 class VideoControlWidget;
+class VideoRecordControlWidget;
+class VideoWriter;
 
 namespace Ui {
 class MainWindow;
@@ -22,8 +24,10 @@ public:
 private:
     Ui::MainWindow *ui;
     VideoCapture *mVideoCapture;
+    VideoWriter *mVideoWriter;
     ImageWidget *mImageWidget;
     VideoControlWidget *mVideoControlWidget;
+    VideoRecordControlWidget *mVideoRecordControlWidget;
 };
 
 #endif // MAINWINDOW_H
