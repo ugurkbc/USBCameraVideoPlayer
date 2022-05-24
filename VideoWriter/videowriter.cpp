@@ -44,26 +44,26 @@ VideoWriter::~VideoWriter()
 
 bool VideoWriter::play(QString pFileName, int pWidth, int pHeight, double pFPS)
 {
-    if(pFileName.contains(".") || pFileName == "" || pWidth <= 0 || pHeight <= 0, pFPS <= 0)
-    {
-        qDebug() << "INVALID Input Parameters";
-        return false;
-    }
-
-    mFileName = pFileName + MEDIA_TYPE;
-    mWidth = pWidth;
-    mHeight = pHeight;
-    mFPS = pFPS;
-
-    int lFPSNum = 0, lFPSDenom = 1;
-    Utility::toFraction(pFPS, lFPSNum, lFPSDenom);
-    mFPSNum = lFPSNum;
-    mFPSDenom = lFPSDenom;
-
-    printVideoInfo();
-
     if(!mInit)
     {
+        if(pFileName.contains(".") || pFileName == "" || pWidth <= 0 || pHeight <= 0, pFPS <= 0)
+        {
+            qDebug() << "INVALID Input Parameters";
+            return false;
+        }
+
+        mFileName = pFileName + MEDIA_TYPE;
+        mWidth = pWidth;
+        mHeight = pHeight;
+        mFPS = pFPS;
+
+        int lFPSNum = 0, lFPSDenom = 1;
+        Utility::toFraction(pFPS, lFPSNum, lFPSDenom);
+        mFPSNum = lFPSNum;
+        mFPSDenom = lFPSDenom;
+
+        printVideoInfo();
+
         if(!init()) return false;
     }
     else
@@ -93,10 +93,36 @@ bool VideoWriter::pause()
 
 bool VideoWriter::close()
 {
+    if(!mPipeline) return false;
+
     bool lFlag = true;
 
-    gst_element_send_event((GstElement *)mPipeline, gst_event_new_eos());
-    gst_app_src_end_of_stream((GstAppSrc *)mAppSrc);
+    handleMessage(mPipeline);
+
+    if(gst_app_src_end_of_stream((GstAppSrc *)mAppSrc) != GST_FLOW_OK)
+    {
+         qDebug() << "Cannot send EOS to GStreamer pipeline";
+    }
+    else
+    {
+        GstBus *lBus;
+        lBus = gst_element_get_bus((GstElement *)mPipeline);
+
+        if (lBus)
+        {
+            GstMessage *lMsg;
+            lMsg = gst_bus_timed_pop_filtered(lBus, GST_CLOCK_TIME_NONE, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+            if (!lMsg || GST_MESSAGE_TYPE(lMsg) == GST_MESSAGE_ERROR)
+            {
+                qDebug() << "Error during VideoWriter finalization";
+                handleMessage(mPipeline);
+            }
+        }
+        else
+        {
+            qDebug() << "can't get GstBus";
+        }
+    }
 
     if(!changeState(GST_STATE_NULL))
     {
@@ -121,7 +147,7 @@ bool VideoWriter::changeState(int pState)
     if (lState == GST_STATE_CHANGE_FAILURE)
     {
         qDebug() << "GST_STATE_CHANGE_FAILURE";
-        gst_object_unref (mPipeline);
+        handleMessage (mPipeline);
         return false;
     }
 
@@ -216,5 +242,52 @@ void VideoWriter::recording(QImage pFrame)
     if (gst_app_src_push_buffer((GstAppSrc *) mAppSrc, lBuffer) == GST_FLOW_OK)
     {
         ++mNumFrames;
+    }
+}
+
+void VideoWriter::handleMessage(void *pPipeline)
+{
+    if(!pPipeline) return;
+
+    GstBus *lBus;
+    GstStreamStatusType lStatus;
+    GstElement *lElem = nullptr;
+
+    lBus = gst_element_get_bus((GstElement *)pPipeline);
+
+    while (gst_bus_have_pending(lBus))
+    {
+        GstMessage *lMsg;
+        lMsg = gst_bus_pop(lBus);
+
+        if (!lMsg || !GST_IS_MESSAGE(lMsg))
+            continue;
+
+        switch (GST_MESSAGE_TYPE (lMsg))
+        {
+        case GST_MESSAGE_STATE_CHANGED:
+            GstState lOldState,lNewstate, lPendstate;
+            gst_message_parse_state_changed(lMsg, &lOldState, &lNewstate, &lPendstate);
+            break;
+        case GST_MESSAGE_ERROR:
+        {
+            GError *lErr;
+            gchar *lDebug;
+            gst_message_parse_error(lMsg, &lErr, &lDebug);
+            gchar *lName;
+            lName = gst_element_get_name(GST_MESSAGE_SRC (lMsg));
+            qDebug() << "Embedded video playback halted; module " << lName << " reported: " << lErr->message;
+
+            gst_element_set_state(GST_ELEMENT(pPipeline), GST_STATE_NULL);
+            break;
+        }
+        case GST_MESSAGE_EOS:
+            break;
+        case GST_MESSAGE_STREAM_STATUS:
+            gst_message_parse_stream_status(lMsg, &lStatus, &lElem);
+            break;
+        default:
+            break;
+        }
     }
 }

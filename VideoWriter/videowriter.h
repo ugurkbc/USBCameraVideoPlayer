@@ -23,6 +23,7 @@ private:
     bool changeState(int pState);
     void clean();
     bool init();
+    void handleMessage(void *pPipeline);
 
 public slots:
     void recording(QImage pFrame);
