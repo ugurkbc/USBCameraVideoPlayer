@@ -20,15 +20,6 @@ VideoWriter::VideoWriter(QObject *parent) : QObject(parent)
         gst_init(nullptr, nullptr);
         GST_INIT = true;
     }
-
-    if (!gst_debug_is_active()) {
-        gst_debug_set_active(TRUE);
-        GstDebugLevel dbglevel = gst_debug_get_default_threshold();
-        if (dbglevel < GST_LEVEL_FIXME) {
-            dbglevel = GST_LEVEL_FIXME;
-            gst_debug_set_default_threshold(dbglevel);
-        }
-    }
 }
 
 VideoWriter::~VideoWriter()
