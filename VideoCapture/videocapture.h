@@ -25,6 +25,8 @@ private:
     bool changeState(int pState);
     void clean();
     bool init();
+    bool printError(void *pError);
+    bool checkStream();
 
 private slots:
     void retrieveFrame();
@@ -45,6 +47,7 @@ private:
     static const QString PREFIX_DEVICE_PATH;
     static const QString APPSINK_NAME;
     static const int INVALID = -1;
+    static const QString STREAM_FORMAT;
 signals:
     void onNewFrame(QImage);
     void onStateChange(int);

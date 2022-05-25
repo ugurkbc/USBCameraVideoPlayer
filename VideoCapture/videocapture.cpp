@@ -6,6 +6,7 @@
 
 const QString VideoCapture::PREFIX_DEVICE_PATH = "/dev/video";
 const QString VideoCapture::APPSINK_NAME = "mysink";
+const QString VideoCapture::STREAM_FORMAT = "RGB";
 bool GST_INIT = false;
 
 VideoCapture::VideoCapture(QObject *parent) : QObject(parent)
@@ -83,22 +84,48 @@ bool VideoCapture::play(int pDeviceNumber)
 
 QString VideoCapture::createPipeline()
 {
-    return QString("v4l2src device=" + mDevicePath + " ! videoconvert ! video/x-raw, format=RGB ! appsink drop=true name=" +  APPSINK_NAME);
+    return QString("v4l2src device=" + mDevicePath + " ! videoconvert ! video/x-raw, format=" + STREAM_FORMAT + " ! appsink drop=true name=" +  APPSINK_NAME);
 }
 
 bool VideoCapture::launchPipeline(QString pPipeline)
 {
-    if(!(mPipeline = gst_parse_launch(pPipeline.toStdString().c_str(), nullptr))) return false;
+    GError *lError = nullptr;
 
-    if(!(mAppSink = gst_bin_get_by_name(GST_BIN(mPipeline), APPSINK_NAME.toStdString().c_str()))) return false;
+    mPipeline = gst_parse_launch(pPipeline.toStdString().c_str(), &lError);
+
+    if(!printError(lError)) return false;
+
+    if(!(mAppSink = gst_bin_get_by_name(GST_BIN(mPipeline), APPSINK_NAME.toStdString().c_str())))
+    {
+        qDebug() << "Error gst_bin_get_by_name";
+        return false;
+    }
 
     if(!changeState(GST_STATE_PLAYING)) return false;
 
-    GstPad *lPad = gst_element_get_static_pad((GstElement *)mAppSink, "sink");
+    GstPad *lPad = nullptr;
 
-    GstCaps *lCaps = gst_pad_get_current_caps(lPad);
+    if(!(lPad = gst_element_get_static_pad((GstElement *)mAppSink, "sink")))
+    {
+        qDebug() << "Error gst_element_get_static_pad";
+        return false;
+    }
 
-    GstStructure *lStructure = gst_caps_get_structure(lCaps, 0);
+    GstCaps *lCaps = nullptr;
+
+    if(!(lCaps = gst_pad_get_current_caps(lPad)))
+    {
+        qDebug() << "Error gst_pad_get_current_caps";
+        return false;
+    }
+
+    GstStructure *lStructure = nullptr;
+
+    if(!(lStructure = gst_caps_get_structure(lCaps, 0)))
+    {
+        qDebug() << "Error gst_caps_get_structure";
+        return false;
+    }
 
     gst_structure_get_int (lStructure, "width", &mWidth);
     gst_structure_get_int (lStructure, "height", &mHeight);
@@ -110,6 +137,8 @@ bool VideoCapture::launchPipeline(QString pPipeline)
     const gchar* lFormat = gst_structure_get_string(lStructure, "format");
 
     mFormat = QString(lFormat);
+
+    if(!checkStream()) return false;
 
     return true;
 }
@@ -178,7 +207,8 @@ bool VideoCapture::changeState(int pState)
 
     GstClockTime lTimeOutNanoSecond = 3000000000; // 3 second
 
-    if (gst_element_get_state ((GstElement *)mPipeline, NULL, NULL, lTimeOutNanoSecond) == GST_STATE_CHANGE_FAILURE) {
+    if (gst_element_get_state ((GstElement *)mPipeline, NULL, NULL, lTimeOutNanoSecond) == GST_STATE_CHANGE_FAILURE)
+    {
        qDebug() << "Failed to go into the state";
        return false;
      }
@@ -190,9 +220,13 @@ bool VideoCapture::changeState(int pState)
 
 void VideoCapture::clean()
 {
+    qDebug() << gst_element_get_state ((GstElement *)mPipeline, NULL, NULL, 0);
+
     gst_object_unref (mPipeline);
     gst_object_unref (mAppSink);
 
+    mPipeline = nullptr;
+    mAppSink = nullptr;
     mWidth = INVALID;
     mHeight = INVALID;
     mFPS = INVALID;
@@ -214,6 +248,28 @@ bool VideoCapture::init()
     mPlay = true;
 
     QMetaObject::invokeMethod(this, "retrieveFrame", Qt::QueuedConnection);
+
+    return true;
+}
+
+bool VideoCapture::printError(void *pError)
+{
+    if(pError != nullptr)
+    {
+        qDebug() << ((GError *)pError)->message;
+        return false;
+    }
+
+    return true;
+}
+
+bool VideoCapture::checkStream()
+{
+    if(mFormat != STREAM_FORMAT  || mWidth <= 0 || mHeight <= 0 || mFPS <= 0)
+    {
+        qDebug() << "INVALID Values";
+        return false;
+    }
 
     return true;
 }
