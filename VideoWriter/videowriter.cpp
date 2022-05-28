@@ -73,6 +73,8 @@ bool VideoWriter::close()
 {
     if(!mPipeline) return false;
 
+    bool lFlag = true;
+
     if(gst_app_src_end_of_stream((GstAppSrc *)mAppSrc) != GST_FLOW_OK)
     {
          qDebug() << "Cannot send EOS to GStreamer pipeline";
@@ -98,13 +100,12 @@ bool VideoWriter::close()
 
     if(!changeState(GST_STATE_NULL))
     {
-        clean();
-        return false;
+        lFlag = false;
     }
 
     clean();
 
-    return true;
+    return lFlag;
 }
 
 bool VideoWriter::changeState(int pState)

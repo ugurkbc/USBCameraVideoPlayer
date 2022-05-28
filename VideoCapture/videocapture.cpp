@@ -51,11 +51,12 @@ bool VideoCapture::close()
     if(!changeState(GST_STATE_NULL))
     {
         qDebug() << "Closing Failed";
-
         lFlag = false;
     }
 
     mPlay = false;
+
+    clean();
 
     return lFlag;
 }
