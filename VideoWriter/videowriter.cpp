@@ -24,7 +24,7 @@ VideoWriter::VideoWriter(QObject *parent) : QObject(parent)
 
 VideoWriter::~VideoWriter()
 {
-    if(mInit)
+    if(mPipeline)
     {
         close();
     }
@@ -35,7 +35,7 @@ VideoWriter::~VideoWriter()
 
 bool VideoWriter::play(QString pFileName, int pWidth, int pHeight, double pFPS)
 {
-    if(!mInit)
+    if(!mPipeline)
     {
         if(pFileName.contains(".") || pFileName == "" || pWidth <= 0 || pHeight <= 0, pFPS <= 0)
         {
@@ -62,21 +62,8 @@ bool VideoWriter::play(QString pFileName, int pWidth, int pHeight, double pFPS)
         if(!changeState(GST_STATE_PLAYING))
         {
             qDebug() << "Playing Failed";
-
             return false;
         }
-    }
-
-    return true;
-}
-
-bool VideoWriter::pause()
-{
-    if(!changeState(GST_STATE_PAUSED))
-    {
-        qDebug() << "Pausing Failed";
-
-        return false;
     }
 
     return true;
@@ -86,83 +73,95 @@ bool VideoWriter::close()
 {
     if(!mPipeline) return false;
 
-    bool lFlag = true;
-
-    handleMessage(mPipeline);
-
     if(gst_app_src_end_of_stream((GstAppSrc *)mAppSrc) != GST_FLOW_OK)
     {
          qDebug() << "Cannot send EOS to GStreamer pipeline";
     }
+
+    GstBus *lBus;
+    lBus = gst_element_get_bus((GstElement *)mPipeline);
+
+    if (lBus)
+    {
+        GstMessage *lMsg;
+        lMsg = gst_bus_timed_pop_filtered(lBus, GST_CLOCK_TIME_NONE, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+        if (!lMsg || GST_MESSAGE_TYPE(lMsg) == GST_MESSAGE_ERROR)
+        {
+            handleMessage();
+            qDebug() << "Error during VideoWriter finalization";
+        }
+    }
     else
     {
-        GstBus *lBus;
-        lBus = gst_element_get_bus((GstElement *)mPipeline);
-
-        if (lBus)
-        {
-            GstMessage *lMsg;
-            lMsg = gst_bus_timed_pop_filtered(lBus, GST_CLOCK_TIME_NONE, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
-            if (!lMsg || GST_MESSAGE_TYPE(lMsg) == GST_MESSAGE_ERROR)
-            {
-                qDebug() << "Error during VideoWriter finalization";
-                handleMessage(mPipeline);
-            }
-        }
-        else
-        {
-            qDebug() << "can't get GstBus";
-        }
+        qDebug() << "can't get GstBus";
     }
 
     if(!changeState(GST_STATE_NULL))
     {
-        qDebug() << "Closing Failed";
-
-        lFlag = false;
+        clean();
+        return false;
     }
 
     clean();
 
-    return lFlag;
+    return true;
 }
 
 bool VideoWriter::changeState(int pState)
 {
     if(!mPipeline) return false;
 
-    GstStateChangeReturn lState;
+    GstStateChangeReturn lStateChangeReturn;
 
-    lState = gst_element_set_state(GST_ELEMENT(mPipeline), (GstState)pState);
+    lStateChangeReturn = gst_element_set_state(GST_ELEMENT(mPipeline), (GstState)pState);
 
-    if (lState == GST_STATE_CHANGE_FAILURE)
+    if (lStateChangeReturn == GST_STATE_CHANGE_FAILURE)
     {
         qDebug() << "GST_STATE_CHANGE_FAILURE";
-        handleMessage (mPipeline);
+        handleMessage();
         return false;
     }
+    else if(lStateChangeReturn == GST_STATE_CHANGE_ASYNC)
+    {
+        qDebug() << "GST_STATE_CHANGE_ASYNC";
+    }
+    else if(lStateChangeReturn == GST_STATE_CHANGE_NO_PREROLL)
+    {
+        qDebug() << "GST_STATE_CHANGE_NO_PREROLL";
+    }
+    else if(lStateChangeReturn == GST_STATE_CHANGE_SUCCESS)
+    {
+        qDebug() << "GST_STATE_CHANGE_SUCCESS";
+    }
 
-    GstClockTime lTimeOutNanoSecond = 3000000000; // 3 second
+    handleMessage();
 
-    if (gst_element_get_state ((GstElement *)mPipeline, NULL, NULL, lTimeOutNanoSecond) == GST_STATE_CHANGE_FAILURE) {
-       qDebug() << "Failed to go into the state";
-       return false;
-     }
+    GstState lCurrentState;
 
-    emit onStateChange(pState);
+    lStateChangeReturn = gst_element_get_state((GstElement *)mPipeline, &lCurrentState, nullptr, 0);
+
+    emit onStateChange(lCurrentState);
 
     return true;
 }
 
 void VideoWriter::clean()
 {
-    gst_object_unref(mPipeline);
-    gst_object_unref(mAppSrc);
+    if(mPipeline)
+    {
+        gst_object_unref (mPipeline);
+    }
 
+    if(mAppSrc)
+    {
+        gst_object_unref (mAppSrc);
+    }
+
+    mPipeline = nullptr;
+    mAppSrc = nullptr;
     mWidth = INVALID;
     mHeight = INVALID;
     mFPS = INVALID;
-    mInit = false;
     mNumFrames = 0;
 }
 
@@ -175,9 +174,17 @@ QString VideoWriter::createPipeline()
 
 bool VideoWriter::launchPipeline(QString pPipeline)
 {
-    if(!(mPipeline = gst_parse_launch(pPipeline.toStdString().c_str(), nullptr))) return false;
+    GError *lError = nullptr;
 
-    if(!(mAppSrc = gst_bin_get_by_name(GST_BIN(mPipeline), APPSRC_NAME.toStdString().c_str()))) return false;
+    mPipeline = gst_parse_launch(pPipeline.toStdString().c_str(), &lError);
+
+    if(!printError(lError)) return false;
+
+    if(!(mAppSrc = gst_bin_get_by_name(GST_BIN(mPipeline), APPSRC_NAME.toStdString().c_str())))
+    {
+        qDebug() << "Error gst_bin_get_by_name";
+        return false;
+    }
 
     g_object_set(G_OBJECT(mAppSrc), "format", GST_FORMAT_TIME, NULL);
     g_object_set(G_OBJECT(mAppSrc), "block", 1, NULL);
@@ -201,10 +208,9 @@ bool VideoWriter::init()
     if(!launchPipeline(createPipeline()))
     {
         qDebug() << "Pipeline Launch Error";
+        clean();
         return false;
     }
-
-    mInit = true;
 
     return true;
 }
@@ -236,19 +242,31 @@ void VideoWriter::recording(QImage pFrame)
     }
 }
 
-void VideoWriter::handleMessage(void *pPipeline)
+bool VideoWriter::printError(void *pError)
 {
-    if(!pPipeline) return;
+    if(pError != nullptr)
+    {
+        qDebug() << ((GError *)pError)->message;
+        return false;
+    }
+
+    return true;
+}
+
+void VideoWriter::handleMessage()
+{
+    if(!mPipeline) return;
 
     GstBus *lBus;
-    GstStreamStatusType lStatus;
-    GstElement *lElem = nullptr;
 
-    lBus = gst_element_get_bus((GstElement *)pPipeline);
+    lBus = gst_element_get_bus((GstElement *)mPipeline);
 
     while (gst_bus_have_pending(lBus))
     {
         GstMessage *lMsg;
+        GError *lErr;
+        gchar *lDebugInfo;
+
         lMsg = gst_bus_pop(lBus);
 
         if (!lMsg || !GST_IS_MESSAGE(lMsg))
@@ -257,25 +275,25 @@ void VideoWriter::handleMessage(void *pPipeline)
         switch (GST_MESSAGE_TYPE (lMsg))
         {
         case GST_MESSAGE_STATE_CHANGED:
-            GstState lOldState,lNewstate, lPendstate;
-            gst_message_parse_state_changed(lMsg, &lOldState, &lNewstate, &lPendstate);
+            if (GST_MESSAGE_SRC (lMsg) == GST_OBJECT (mPipeline))
+            {
+                GstState lOldState, lNewState, lPendingState;
+                gst_message_parse_state_changed (lMsg, &lOldState, &lNewState, &lPendingState);
+                qDebug() << "Pipeline state changed from " << QString(gst_element_state_get_name (lOldState)) << " to " << QString(gst_element_state_get_name (lNewState)) << ":";
+            }
             break;
         case GST_MESSAGE_ERROR:
         {
-            GError *lErr;
-            gchar *lDebug;
-            gst_message_parse_error(lMsg, &lErr, &lDebug);
-            gchar *lName;
-            lName = gst_element_get_name(GST_MESSAGE_SRC (lMsg));
-            qDebug() << "Embedded video playback halted; module " << lName << " reported: " << lErr->message;
-
-            gst_element_set_state(GST_ELEMENT(pPipeline), GST_STATE_NULL);
+            gst_message_parse_error (lMsg, &lErr, &lDebugInfo);
+            g_printerr ("Error received from element %s: %s\n", GST_OBJECT_NAME (lMsg->src), lErr->message);
+            g_printerr ("Debugging information: %s\n", lDebugInfo ? lDebugInfo : "none");
+            g_clear_error (&lErr);
+            g_free (lDebugInfo);
+            gst_element_set_state(GST_ELEMENT(mPipeline), GST_STATE_NULL);
             break;
         }
         case GST_MESSAGE_EOS:
-            break;
-        case GST_MESSAGE_STREAM_STATUS:
-            gst_message_parse_stream_status(lMsg, &lStatus, &lElem);
+            g_print ("End-Of-Stream reached.\n");
             break;
         default:
             break;

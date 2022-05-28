@@ -12,7 +12,6 @@ bool GST_INIT = false;
 VideoCapture::VideoCapture(QObject *parent) : QObject(parent)
 {
     this->moveToThread(&mThread);
-
     mThread.start();
 
     if(!GST_INIT)
@@ -24,7 +23,7 @@ VideoCapture::VideoCapture(QObject *parent) : QObject(parent)
 
 VideoCapture::~VideoCapture()
 {
-    if(mInit)
+    if(mPipeline)
     {
         close();
     }
@@ -65,7 +64,7 @@ bool VideoCapture::play(int pDeviceNumber)
 {
     mDevicePath = PREFIX_DEVICE_PATH + QString::number(pDeviceNumber);
 
-    if(!mInit)
+    if(!mPipeline)
     {
         if(!init()) return false;
     }
@@ -93,7 +92,10 @@ bool VideoCapture::launchPipeline(QString pPipeline)
 
     mPipeline = gst_parse_launch(pPipeline.toStdString().c_str(), &lError);
 
-    if(!printError(lError)) return false;
+    if(!printError(lError))
+    {
+        return false;
+    }
 
     if(!(mAppSink = gst_bin_get_by_name(GST_BIN(mPipeline), APPSINK_NAME.toStdString().c_str())))
     {
@@ -101,7 +103,11 @@ bool VideoCapture::launchPipeline(QString pPipeline)
         return false;
     }
 
-    if(!changeState(GST_STATE_PLAYING)) return false;
+    if(!changeState(GST_STATE_PLAYING))
+    {
+        qDebug() << "Error changeState";
+        return false;
+    }
 
     GstPad *lPad = nullptr;
 
@@ -194,36 +200,52 @@ bool VideoCapture::changeState(int pState)
 {
     if(!mPipeline) return false;
 
-    GstStateChangeReturn lState;
+    GstStateChangeReturn lStateChangeReturn;
 
-    lState = gst_element_set_state(GST_ELEMENT(mPipeline), (GstState)pState);
+    lStateChangeReturn = gst_element_set_state(GST_ELEMENT(mPipeline), (GstState)pState);
 
-    if (lState == GST_STATE_CHANGE_FAILURE)
+    if (lStateChangeReturn == GST_STATE_CHANGE_FAILURE)
     {
         qDebug() << "GST_STATE_CHANGE_FAILURE";
-        gst_object_unref (mPipeline);
+        handleMessage();
         return false;
     }
-
-    GstClockTime lTimeOutNanoSecond = 3000000000; // 3 second
-
-    if (gst_element_get_state ((GstElement *)mPipeline, NULL, NULL, lTimeOutNanoSecond) == GST_STATE_CHANGE_FAILURE)
+    else if(lStateChangeReturn == GST_STATE_CHANGE_ASYNC)
     {
-       qDebug() << "Failed to go into the state";
-       return false;
-     }
+        qDebug() << "GST_STATE_CHANGE_ASYNC";
+        lStateChangeReturn = gst_element_get_state((GstElement *)mPipeline, nullptr, nullptr, GST_CLOCK_TIME_NONE);
+    }
+    else if(lStateChangeReturn == GST_STATE_CHANGE_NO_PREROLL)
+    {
+        qDebug() << "GST_STATE_CHANGE_NO_PREROLL";
+    }
+    else if(lStateChangeReturn == GST_STATE_CHANGE_SUCCESS)
+    {
+        qDebug() << "GST_STATE_CHANGE_SUCCESS";
+    }
 
-    emit onStateChange(pState);
+    handleMessage();
+
+    GstState lCurrentState;
+
+    lStateChangeReturn = gst_element_get_state((GstElement *)mPipeline, &lCurrentState, nullptr, 0);
+
+    emit onStateChange(lCurrentState);
 
     return true;
 }
 
 void VideoCapture::clean()
 {
-    qDebug() << gst_element_get_state ((GstElement *)mPipeline, NULL, NULL, 0);
+    if(mPipeline)
+    {
+        gst_object_unref (mPipeline);
+    }
 
-    gst_object_unref (mPipeline);
-    gst_object_unref (mAppSink);
+    if(mAppSink)
+    {
+        gst_object_unref (mAppSink);
+    }
 
     mPipeline = nullptr;
     mAppSink = nullptr;
@@ -231,7 +253,6 @@ void VideoCapture::clean()
     mHeight = INVALID;
     mFPS = INVALID;
     mFormat = "";
-    mInit = false;
 }
 
 bool VideoCapture::init()
@@ -239,12 +260,12 @@ bool VideoCapture::init()
     if(!launchPipeline(createPipeline()))
     {
         qDebug() << "Pipeline Launch Error";
+        clean();
         return false;
     }
 
     printVideoInfo();
 
-    mInit = true;
     mPlay = true;
 
     QMetaObject::invokeMethod(this, "retrieveFrame", Qt::QueuedConnection);
@@ -272,4 +293,52 @@ bool VideoCapture::checkStream()
     }
 
     return true;
+}
+
+void VideoCapture::handleMessage()
+{
+    if(!mPipeline) return;
+
+    GstBus *lBus;
+
+    lBus = gst_element_get_bus((GstElement *)mPipeline);
+
+    while (gst_bus_have_pending(lBus))
+    {
+        GstMessage *lMsg;
+        GError *lErr;
+        gchar *lDebugInfo;
+
+        lMsg = gst_bus_pop(lBus);
+
+        if (!lMsg || !GST_IS_MESSAGE(lMsg))
+            continue;
+
+        switch (GST_MESSAGE_TYPE (lMsg))
+        {
+        case GST_MESSAGE_STATE_CHANGED:
+            if (GST_MESSAGE_SRC (lMsg) == GST_OBJECT (mPipeline))
+            {
+                GstState lOldState, lNewState, lPendingState;
+                gst_message_parse_state_changed (lMsg, &lOldState, &lNewState, &lPendingState);
+                qDebug() << "Pipeline state changed from " << QString(gst_element_state_get_name (lOldState)) << " to " << QString(gst_element_state_get_name (lNewState)) << ":";
+            }
+            break;
+        case GST_MESSAGE_ERROR:
+        {
+            gst_message_parse_error (lMsg, &lErr, &lDebugInfo);
+            g_printerr ("Error received from element %s: %s\n", GST_OBJECT_NAME (lMsg->src), lErr->message);
+            g_printerr ("Debugging information: %s\n", lDebugInfo ? lDebugInfo : "none");
+            g_clear_error (&lErr);
+            g_free (lDebugInfo);
+            gst_element_set_state(GST_ELEMENT(mPipeline), GST_STATE_NULL);
+            break;
+        }
+        case GST_MESSAGE_EOS:
+            g_print ("End-Of-Stream reached.\n");
+            break;
+        default:
+            break;
+        }
+    }
 }

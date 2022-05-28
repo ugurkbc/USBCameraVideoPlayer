@@ -27,6 +27,7 @@ private:
     bool init();
     bool printError(void *pError);
     bool checkStream();
+    void handleMessage();
 
 private slots:
     void retrieveFrame();
@@ -41,7 +42,6 @@ private:
     double mFPS = INVALID;
     QString mFormat = "";
     bool mPlay = false;
-    bool mInit = false;
 
 private:
     static const QString PREFIX_DEVICE_PATH;

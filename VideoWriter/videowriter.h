@@ -14,7 +14,6 @@ public:
     ~VideoWriter();
 
     bool play(QString pFileName, int pWidth, int pHeight, double pFPS);
-    bool pause();
     bool close();
 private:
     QString createPipeline();
@@ -23,7 +22,8 @@ private:
     bool changeState(int pState);
     void clean();
     bool init();
-    void handleMessage(void *pPipeline);
+    bool printError(void *pError);
+    void handleMessage();
 
 public slots:
     void recording(QImage pFrame);
@@ -37,7 +37,6 @@ private:
     int mHeight = INVALID;
     double mFPS = INVALID;
     QString mFormat = "RGB";
-    bool mInit = false;
     int mNumFrames = 0;
     int mFPSNum = INVALID;
     int mFPSDenom = INVALID;

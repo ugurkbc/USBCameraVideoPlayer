@@ -32,15 +32,15 @@ void VideoRecordControlWidget::stateChanged(int pVideoState)
 {
     mState = pVideoState;
 
-    if(mState == VideoState::PLAYING_)
+    if(mState == VideoState::READY_)
     {
-        ui->pushButton_play_stop_record->setText("Pause");
+        ui->pushButton_play_stop_record->setEnabled(false);
 
         connect(mImageWidget, &ImageWidget::onNewFrame, mVideoWriter, &VideoWriter::recording, Qt::ConnectionType::QueuedConnection);
     }
     else
     {
-        ui->pushButton_play_stop_record->setText("Play");
+        ui->pushButton_play_stop_record->setEnabled(true);
 
         disconnect(mImageWidget, &ImageWidget::onNewFrame, mVideoWriter, &VideoWriter::recording);
     }
@@ -53,15 +53,8 @@ void VideoRecordControlWidget::on_pushButton_close_record_clicked()
 
 void VideoRecordControlWidget::on_pushButton_play_stop_record_clicked()
 {
-    if(mState == VideoState::PLAYING_)
+    if(!mVideoWriter->play(ui->lineEdit_file_name->text(), 1280, 960, 7.5))
     {
-        mVideoWriter->pause();
-    }
-    else
-    {
-        if(!mVideoWriter->play("video", 1280, 960, 7.5))
-        {
-            qDebug() << "Error Init VideoWriter";
-        }
+        qDebug() << "Error Init VideoWriter";
     }
 }
