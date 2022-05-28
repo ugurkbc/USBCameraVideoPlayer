@@ -19,8 +19,9 @@ MainWindow::MainWindow(QWidget *parent) :
     mVideoRecordControlWidget = new VideoRecordControlWidget(mVideoWriter, mImageWidget);
 
     ui->verticalLayout_videoarea->addWidget(mImageWidget);
-    ui->verticalLayout_videocontrol->addWidget(mVideoControlWidget, 1, Qt::AlignTop);
-    ui->verticalLayout_videocontrol->addWidget(mVideoRecordControlWidget, 1, Qt::AlignTop);
+    ui->verticalLayout_videocontrol->addWidget(mVideoControlWidget, 0, Qt::AlignTop);
+    ui->verticalLayout_videocontrol->addWidget(mVideoRecordControlWidget, 0, Qt::AlignTop);
+    ui->verticalLayout_videocontrol->addStretch(1);
 }
 
 MainWindow::~MainWindow()
