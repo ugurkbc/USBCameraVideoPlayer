@@ -108,6 +108,44 @@ bool VideoWriter::close()
     return lFlag;
 }
 
+QString VideoWriter::createPipeline()
+{
+    return QString("appsrc name=" + APPSRC_NAME + " ! video/x-raw, format=(string)" + mFormat + ", width=(int)"
+                   + QString::number(mWidth)+ ", height=(int)" + QString::number(mHeight) + ", framerate=(fraction)" + QString::number(mFPSNum) + "/"
+                   + QString::number(mFPSDenom) + " ! videoconvert ! omxh264enc ! h264parse ! mp4mux ! filesink location=" + mFileName);
+}
+
+bool VideoWriter::launchPipeline(QString pPipeline)
+{
+    GError *lError = nullptr;
+
+    mPipeline = gst_parse_launch(pPipeline.toStdString().c_str(), &lError);
+
+    if(!printError(lError)) return false;
+
+    if(!(mAppSrc = gst_bin_get_by_name(GST_BIN(mPipeline), APPSRC_NAME.toStdString().c_str())))
+    {
+        qDebug() << "Error gst_bin_get_by_name";
+        return false;
+    }
+
+    g_object_set(G_OBJECT(mAppSrc), "format", GST_FORMAT_TIME, NULL);
+    g_object_set(G_OBJECT(mAppSrc), "block", 1, NULL);
+    g_object_set(G_OBJECT(mAppSrc), "is-live", 0, NULL);
+
+    if(!changeState(GST_STATE_PLAYING)) return false;
+
+    return true;
+}
+
+void VideoWriter::printVideoInfo()
+{
+    qDebug() << "Video Format: " << mFormat;
+    qDebug() << "Video Width: " << mWidth;
+    qDebug() << "Video Height: " << mHeight;
+    qDebug() << "Video FPS: " << mFPS;
+}
+
 bool VideoWriter::changeState(int pState)
 {
     if(!mPipeline) return false;
@@ -166,50 +204,23 @@ void VideoWriter::clean()
     mNumFrames = 0;
 }
 
-QString VideoWriter::createPipeline()
-{
-    return QString("appsrc name=" + APPSRC_NAME + " ! video/x-raw, format=(string)" + mFormat + ", width=(int)"
-                   + QString::number(mWidth)+ ", height=(int)" + QString::number(mHeight) + ", framerate=(fraction)" + QString::number(mFPSNum) + "/"
-                   + QString::number(mFPSDenom) + " ! videoconvert ! omxh264enc ! h264parse ! mp4mux ! filesink location=" + mFileName);
-}
-
-bool VideoWriter::launchPipeline(QString pPipeline)
-{
-    GError *lError = nullptr;
-
-    mPipeline = gst_parse_launch(pPipeline.toStdString().c_str(), &lError);
-
-    if(!printError(lError)) return false;
-
-    if(!(mAppSrc = gst_bin_get_by_name(GST_BIN(mPipeline), APPSRC_NAME.toStdString().c_str())))
-    {
-        qDebug() << "Error gst_bin_get_by_name";
-        return false;
-    }
-
-    g_object_set(G_OBJECT(mAppSrc), "format", GST_FORMAT_TIME, NULL);
-    g_object_set(G_OBJECT(mAppSrc), "block", 1, NULL);
-    g_object_set(G_OBJECT(mAppSrc), "is-live", 0, NULL);
-
-    if(!changeState(GST_STATE_PLAYING)) return false;
-
-    return true;
-}
-
-void VideoWriter::printVideoInfo()
-{
-    qDebug() << "Video Format: " << mFormat;
-    qDebug() << "Video Width: " << mWidth;
-    qDebug() << "Video Height: " << mHeight;
-    qDebug() << "Video FPS: " << mFPS;
-}
-
 bool VideoWriter::init()
 {
     if(!launchPipeline(createPipeline()))
     {
         qDebug() << "Pipeline Launch Error";
         clean();
+        return false;
+    }
+
+    return true;
+}
+
+bool VideoWriter::printError(void *pError)
+{
+    if(pError != nullptr)
+    {
+        qDebug() << ((GError *)pError)->message;
         return false;
     }
 
@@ -241,17 +252,6 @@ void VideoWriter::recording(QImage pFrame)
     {
         ++mNumFrames;
     }
-}
-
-bool VideoWriter::printError(void *pError)
-{
-    if(pError != nullptr)
-    {
-        qDebug() << ((GError *)pError)->message;
-        return false;
-    }
-
-    return true;
 }
 
 void VideoWriter::handleMessage()
