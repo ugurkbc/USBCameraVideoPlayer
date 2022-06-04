@@ -46,6 +46,8 @@ bool VideoCapture::pause()
 
 void VideoCapture::close()
 {
+    mRefCount = GST_OBJECT_REFCOUNT_VALUE(mPipeline);
+
     mPlay = false;
 
     clean();
@@ -152,6 +154,8 @@ void VideoCapture::retrieveFrame()
 {
     GstClockTime lTimeOutNanoSecond = 3000000000; // 3 second
 
+    gst_object_ref (mPipeline);
+
     while(mPlay)
     {
         GstSample *lSample = gst_app_sink_try_pull_sample(GST_APP_SINK(mAppSink), lTimeOutNanoSecond);
@@ -183,41 +187,23 @@ void VideoCapture::retrieveFrame()
             emit onNewFrame(lImage);
         }
     }
+
+    gst_object_unref (mPipeline);
+
+    checkRefCount();
 }
 
 bool VideoCapture::changeState(int pState)
 {
     if(!mPipeline) return false;
 
-    GstStateChangeReturn lStateChangeReturn;
-
-    lStateChangeReturn = gst_element_set_state(GST_ELEMENT(mPipeline), (GstState)pState);
-
-    if (lStateChangeReturn == GST_STATE_CHANGE_FAILURE)
-    {
-        qDebug() << "GST_STATE_CHANGE_FAILURE";
-        handleMessage();
-        return false;
-    }
-    else if(lStateChangeReturn == GST_STATE_CHANGE_ASYNC)
-    {
-        qDebug() << "GST_STATE_CHANGE_ASYNC";
-        lStateChangeReturn = gst_element_get_state((GstElement *)mPipeline, nullptr, nullptr, GST_CLOCK_TIME_NONE);
-    }
-    else if(lStateChangeReturn == GST_STATE_CHANGE_NO_PREROLL)
-    {
-        qDebug() << "GST_STATE_CHANGE_NO_PREROLL";
-    }
-    else if(lStateChangeReturn == GST_STATE_CHANGE_SUCCESS)
-    {
-        qDebug() << "GST_STATE_CHANGE_SUCCESS";
-    }
-
-    handleMessage();
+    gst_element_set_state(GST_ELEMENT(mPipeline), (GstState)pState);
 
     GstState lCurrentState;
 
-    lStateChangeReturn = gst_element_get_state((GstElement *)mPipeline, &lCurrentState, nullptr, 0);
+    gst_element_get_state((GstElement *)mPipeline, &lCurrentState, nullptr, GST_CLOCK_TIME_NONE);
+
+    handleMessage();
 
     emit onStateChange(lCurrentState);
 
@@ -233,16 +219,14 @@ void VideoCapture::clean()
 
     if(mPipeline)
     {
-        gst_object_unref (mPipeline);
+        for(int i = 0; i < mRefCount - 1; ++i)
+        {
+            gst_object_unref (mPipeline);
+        }
     }
 
-    if(mAppSink)
-    {
-        gst_object_unref (mAppSink);
-    }
+    checkRefCount();
 
-    mPipeline = nullptr;
-    mAppSink = nullptr;
     mWidth = INVALID;
     mHeight = INVALID;
     mFPS = INVALID;
@@ -334,5 +318,14 @@ void VideoCapture::handleMessage()
         default:
             break;
         }
+    }
+}
+
+void VideoCapture::checkRefCount()
+{
+    if(!GST_OBJECT_REFCOUNT_VALUE(mPipeline))
+    {
+        mPipeline = nullptr;
+        mAppSink = nullptr;
     }
 }

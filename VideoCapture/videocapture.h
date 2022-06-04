@@ -28,6 +28,8 @@ private:
     bool printError(void *pError);
     bool checkStream();
     void handleMessage();
+    void checkRefCount();
+    int mRefCount = 0;
 
 private slots:
     void retrieveFrame();
