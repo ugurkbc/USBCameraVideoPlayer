@@ -46,11 +46,14 @@ bool VideoCapture::pause()
 
 void VideoCapture::close()
 {
-    mRefCount = GST_OBJECT_REFCOUNT_VALUE(mPipeline);
+    if(mPipeline)
+    {
+        mRefCount = GST_OBJECT_REFCOUNT_VALUE(mPipeline);
 
-    mPlay = false;
+        mPlay = false;
 
-    clean();
+        clean();
+    }
 }
 
 bool VideoCapture::play(int pDeviceNumber)
