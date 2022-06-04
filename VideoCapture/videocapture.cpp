@@ -44,21 +44,11 @@ bool VideoCapture::pause()
     return true;
 }
 
-bool VideoCapture::close()
+void VideoCapture::close()
 {
-    bool lFlag = true;
-
-    if(!changeState(GST_STATE_NULL))
-    {
-        qDebug() << "Closing Failed";
-        lFlag = false;
-    }
-
     mPlay = false;
 
     clean();
-
-    return lFlag;
 }
 
 bool VideoCapture::play(int pDeviceNumber)
@@ -193,8 +183,6 @@ void VideoCapture::retrieveFrame()
             emit onNewFrame(lImage);
         }
     }
-
-    clean();
 }
 
 bool VideoCapture::changeState(int pState)
@@ -238,6 +226,11 @@ bool VideoCapture::changeState(int pState)
 
 void VideoCapture::clean()
 {
+    if(!changeState(GST_STATE_NULL))
+    {
+        qDebug() << "Closing Failed";
+    }
+
     if(mPipeline)
     {
         gst_object_unref (mPipeline);

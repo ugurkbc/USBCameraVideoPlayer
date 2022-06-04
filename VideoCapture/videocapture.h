@@ -15,7 +15,7 @@ public:
 
 public slots:
     bool pause();
-    bool close();
+    void close();
     bool play(int pDeviceNumber);
 
 private:
