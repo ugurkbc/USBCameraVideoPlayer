@@ -283,9 +283,7 @@ void VideoCapture::handleMessage()
 {
     if(!mPipeline) return;
 
-    GstBus *lBus;
-
-    lBus = gst_element_get_bus((GstElement *)mPipeline);
+    GstBus *lBus = gst_element_get_bus((GstElement *)mPipeline);
 
     while (gst_bus_have_pending(lBus))
     {
@@ -324,7 +322,11 @@ void VideoCapture::handleMessage()
         default:
             break;
         }
+
+        gst_message_unref(lMsg);
     }
+
+    if(lBus) gst_object_unref(lBus);
 }
 
 void VideoCapture::checkRefCount()
