@@ -48,11 +48,13 @@ void VideoCapture::close()
 {
     if(mPipeline)
     {
-        mRefCount = GST_OBJECT_REFCOUNT_VALUE(mPipeline);
+        int lRefCount = GST_OBJECT_REFCOUNT_VALUE(mPipeline);
+
+        lRefCount--;
 
         mPlay = false;
 
-        clean();
+        clean(lRefCount);
     }
 }
 
@@ -213,7 +215,7 @@ bool VideoCapture::changeState(int pState)
     return true;
 }
 
-void VideoCapture::clean()
+void VideoCapture::clean(int pRefCount)
 {
     if(!changeState(GST_STATE_NULL))
     {
@@ -222,7 +224,7 @@ void VideoCapture::clean()
 
     if(mPipeline)
     {
-        for(int i = 0; i < mRefCount - 1; ++i)
+        for(int i = 0; i < pRefCount; ++i)
         {
             gst_object_unref (mPipeline);
         }
@@ -241,7 +243,8 @@ bool VideoCapture::init()
     if(!launchPipeline(createPipeline()))
     {
         qDebug() << "Pipeline Launch Error";
-        clean();
+        int lRefCount = GST_OBJECT_REFCOUNT_VALUE(mPipeline);
+        clean(lRefCount);
         return false;
     }
 

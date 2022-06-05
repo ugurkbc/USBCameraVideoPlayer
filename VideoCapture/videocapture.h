@@ -23,13 +23,12 @@ private:
     bool launchPipeline(QString pPipeline);
     void printVideoInfo();
     bool changeState(int pState);
-    void clean();
+    void clean(int pRefCount);
     bool init();
     bool printError(void *pError);
     bool checkStream();
     void handleMessage();
     void checkRefCount();
-    int mRefCount = 0;
 
 private slots:
     void retrieveFrame();
