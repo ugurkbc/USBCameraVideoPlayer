@@ -92,6 +92,9 @@ bool VideoWriter::close()
             handleMessage();
             qDebug() << "Error during VideoWriter finalization";
         }
+
+        gst_object_unref(lBus);
+        gst_message_unref(lMsg);
     }
     else
     {
@@ -150,34 +153,13 @@ bool VideoWriter::changeState(int pState)
 {
     if(!mPipeline) return false;
 
-    GstStateChangeReturn lStateChangeReturn;
-
-    lStateChangeReturn = gst_element_set_state(GST_ELEMENT(mPipeline), (GstState)pState);
-
-    if (lStateChangeReturn == GST_STATE_CHANGE_FAILURE)
-    {
-        qDebug() << "GST_STATE_CHANGE_FAILURE";
-        handleMessage();
-        return false;
-    }
-    else if(lStateChangeReturn == GST_STATE_CHANGE_ASYNC)
-    {
-        qDebug() << "GST_STATE_CHANGE_ASYNC";
-    }
-    else if(lStateChangeReturn == GST_STATE_CHANGE_NO_PREROLL)
-    {
-        qDebug() << "GST_STATE_CHANGE_NO_PREROLL";
-    }
-    else if(lStateChangeReturn == GST_STATE_CHANGE_SUCCESS)
-    {
-        qDebug() << "GST_STATE_CHANGE_SUCCESS";
-    }
-
-    handleMessage();
+    gst_element_set_state(GST_ELEMENT(mPipeline), (GstState)pState);
 
     GstState lCurrentState;
 
-    lStateChangeReturn = gst_element_get_state((GstElement *)mPipeline, &lCurrentState, nullptr, 0);
+    gst_element_get_state((GstElement *)mPipeline, &lCurrentState, nullptr, 0);
+
+    handleMessage();
 
     emit onStateChange(lCurrentState);
 
@@ -186,14 +168,9 @@ bool VideoWriter::changeState(int pState)
 
 void VideoWriter::clean()
 {
-    if(mPipeline)
+    while(GST_OBJECT_REFCOUNT_VALUE(mPipeline))
     {
-        gst_object_unref (mPipeline);
-    }
-
-    if(mAppSrc)
-    {
-        gst_object_unref (mAppSrc);
+        gst_object_unref(mPipeline);
     }
 
     mPipeline = nullptr;
