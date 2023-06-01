@@ -14,20 +14,21 @@ public:
     ~VideoCapture();
 
 public slots:
-    bool pause();
+    int play(int pDeviceNumber);
+    int pause();
     void close();
-    bool play(int pDeviceNumber);
+
+protected:
+    virtual QString createPipeline();
 
 private:
-    QString createPipeline();
-    bool launchPipeline(QString pPipeline);
+    int launchPipeline(QString pPipeline);
     void printVideoInfo();
-    bool changeState(int pState);
-    void clean(int pRefCount);
-    bool init();
-    bool printError(void *pError);
-    bool checkStream();
-    void handleMessage();
+    int changeState(int pState);
+    void clean();
+    int init();
+    int printError(void *pError);
+    int checkStream();
     void checkRefCount();
 
 private slots:
@@ -49,6 +50,7 @@ private:
     static const QString APPSINK_NAME;
     static const int INVALID = -1;
     static const QString STREAM_FORMAT;
+
 signals:
     void onNewFrame(QImage);
     void onStateChange(int);

@@ -1,6 +1,7 @@
 #include "videocontrolwidget.h"
 #include "ui_videocontrolwidget.h"
 #include <VideoCapture/videocapture.h>
+#include <imagewidget.h>
 
 enum VideoState{
 PENDING_ = 0,
@@ -10,11 +11,12 @@ PAUSED_ = 3,
 PLAYING_ = 4
 };
 
-VideoControlWidget::VideoControlWidget(VideoCapture *pVideoCapture, QWidget *parent) :
+VideoControlWidget::VideoControlWidget(VideoCapture *pVideoCapture, ImageWidget *pImageWidget, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::VideoControlWidget)
     ,mVideoCapture(pVideoCapture)
     ,mState(NULL_)
+    ,mImageWidget(pImageWidget)
 {
     ui->setupUi(this);
     connect(mVideoCapture, &VideoCapture::onStateChange, this, &VideoControlWidget::stateChanged, Qt::DirectConnection);
@@ -32,10 +34,17 @@ void VideoControlWidget::stateChanged(int pVideoState)
     if(mState == VideoState::PLAYING_)
     {
         ui->pushButton_video_play_stop->setText("Pause");
+        connect(mVideoCapture, &VideoCapture::onNewFrame, mImageWidget, &ImageWidget::newImage, Qt::DirectConnection);
     }
-    else
+    else if(mState == VideoState::PAUSED_)
     {
         ui->pushButton_video_play_stop->setText("Play");
+    }
+    else if(mState == VideoState::NULL_)
+    {
+        ui->pushButton_video_play_stop->setText("Play");
+        mImageWidget->enableUpdate();
+        mImageWidget->fillBlack();
     }
 }
 
@@ -60,5 +69,7 @@ void VideoControlWidget::on_pushButton_video_play_stop_clicked()
 
 void VideoControlWidget::on_pushButton_video_close_clicked()
 {
+    mImageWidget->disableUpdate();
+    disconnect(mVideoCapture, &VideoCapture::onNewFrame, mImageWidget, &ImageWidget::newImage);
     mVideoCapture->close();
 }

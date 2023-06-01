@@ -12,14 +12,17 @@ class ImageWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit ImageWidget(VideoCapture *pVideoCapture, QWidget *parent = nullptr);
+    explicit ImageWidget(QWidget *parent = nullptr);
     ~ImageWidget();
+
+    void fillBlack();
+    void disableUpdate();
+    void enableUpdate();
 
 private:
     QImage mImage;
     QMutexLocker *mLocker;
     QMutex mMutex;
-    VideoCapture *mVideoCapture;
 
 protected:
     void paintEvent(QPaintEvent *event) override;

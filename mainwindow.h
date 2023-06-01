@@ -26,7 +26,7 @@ private:
     VideoCapture *mVideoCapture;
     VideoWriter *mVideoWriter;
     ImageWidget *mImageWidget;
-    VideoControlWidget *mVideoControlWidget;
+    VideoControlWidget *mVideoCaptureControlWidget;
     VideoRecordControlWidget *mVideoRecordControlWidget;
 };
 

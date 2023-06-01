@@ -14,12 +14,12 @@ MainWindow::MainWindow(QWidget *parent) :
 
     mVideoCapture = new VideoCapture();
     mVideoWriter = new VideoWriter();
-    mImageWidget = new ImageWidget(mVideoCapture);
-    mVideoControlWidget = new VideoControlWidget(mVideoCapture);
+    mImageWidget = new ImageWidget();
+    mVideoCaptureControlWidget = new VideoControlWidget(mVideoCapture, mImageWidget);
     mVideoRecordControlWidget = new VideoRecordControlWidget(mVideoWriter, mImageWidget);
 
     ui->verticalLayout_videoarea->addWidget(mImageWidget);
-    ui->verticalLayout_videocontrol->addWidget(mVideoControlWidget, 0, Qt::AlignTop);
+    ui->verticalLayout_videocontrol->addWidget(mVideoCaptureControlWidget, 0, Qt::AlignTop);
     ui->verticalLayout_videocontrol->addWidget(mVideoRecordControlWidget, 0, Qt::AlignTop);
     ui->verticalLayout_videocontrol->addStretch(1);
 }

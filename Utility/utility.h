@@ -4,6 +4,13 @@
 #include <float.h>
 #include <math.h>
 
+enum OKERROR_STATUS
+{
+    OK = 0,
+    ERROR = -1
+};
+
+
 class Utility
 {
 public:

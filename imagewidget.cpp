@@ -2,14 +2,12 @@
 #include <QPainter>
 #include <QPaintEvent>
 #include <VideoCapture/videocapture.h>
+#include <QDebug>
 
-ImageWidget::ImageWidget(VideoCapture *pVideoCapture, QWidget *parent)
+ImageWidget::ImageWidget(QWidget *parent)
     : QWidget(parent)
-    , mVideoCapture(pVideoCapture)
 {
     mLocker = new QMutexLocker(&mMutex);
-
-    connect(mVideoCapture, &VideoCapture::onNewFrame, this, &ImageWidget::newImage, Qt::DirectConnection);
 }
 
 ImageWidget::~ImageWidget()
@@ -18,15 +16,35 @@ ImageWidget::~ImageWidget()
     delete mLocker;
 }
 
+void ImageWidget::fillBlack()
+{
+    mImage =  QImage(width(), height(), QImage::Format::Format_RGB888);
+
+    mImage.fill(Qt::black);
+
+    update();
+}
+
+void ImageWidget::disableUpdate()
+{
+    setUpdatesEnabled(false);
+
+    mLocker->unlock();
+}
+
+void ImageWidget::enableUpdate()
+{
+    setUpdatesEnabled(true);
+}
+
 void ImageWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
     QPainter lPainter(this);
+
     lPainter.drawImage((rect().bottomRight() - mImage.rect().bottomRight()) / 2, mImage);
 
     emit onNewFrame(mImage);
-
-    mLocker->unlock();
 }
 
 void ImageWidget::newImage(QImage pImage)

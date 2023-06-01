@@ -13,17 +13,16 @@ public:
     explicit VideoWriter(QObject *parent = nullptr);
     ~VideoWriter();
 
-    bool play(QString pFileName, int pWidth, int pHeight, double pFPS);
-    bool close();
+    int play(QString pFileName, int pWidth, int pHeight, double pFPS);
+    void close();
 private:
     QString createPipeline();
-    bool launchPipeline(QString pPipeline);
+    int launchPipeline(QString pPipeline);
     void printVideoInfo();
-    bool changeState(int pState);
+    int changeState(int pState);
     void clean();
-    bool init();
-    bool printError(void *pError);
-    void handleMessage();
+    int init();
+    int printError(void *pError);
 
 public slots:
     void recording(QImage pFrame);
