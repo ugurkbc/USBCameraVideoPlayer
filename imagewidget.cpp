@@ -16,27 +16,6 @@ ImageWidget::~ImageWidget()
     delete mLocker;
 }
 
-void ImageWidget::fillBlack()
-{
-    mImage =  QImage(width(), height(), QImage::Format::Format_RGB888);
-
-    mImage.fill(Qt::black);
-
-    update();
-}
-
-void ImageWidget::disableUpdate()
-{
-    setUpdatesEnabled(false);
-
-    mLocker->unlock();
-}
-
-void ImageWidget::enableUpdate()
-{
-    setUpdatesEnabled(true);
-}
-
 void ImageWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);

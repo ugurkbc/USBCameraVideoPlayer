@@ -38,16 +38,21 @@ VideoCapture::~VideoCapture()
     mThread.wait();
 }
 
-int VideoCapture::pause()
+void VideoCapture::cleanImageBuffer(void *pImageBuffer)
 {
-    if(ERROR == changeState(GST_STATE_PAUSED))
-    {
-        qDebug() << "Pausing Failed";
+    gst_buffer_unref((GstBuffer *) pImageBuffer);
+}
 
-        return ERROR;
+void VideoCapture::pause()
+{
+    if(mPlay){
+        if(ERROR == changeState(GST_STATE_PAUSED))
+        {
+            qDebug() << "Pausing Failed";
+
+            clean();
+        }
     }
-
-    return OK;
 }
 
 void VideoCapture::close()
@@ -55,25 +60,26 @@ void VideoCapture::close()
     mPlay = false;
 }
 
-int VideoCapture::play(int pDeviceNumber)
+void VideoCapture::play(int pDeviceNumber)
 {
     mDevicePath = PREFIX_DEVICE_PATH + QString::number(pDeviceNumber);
 
     if(!mPipeline)
     {
-        if(ERROR == init()) return ERROR;
+        if(ERROR == init()) {
+           clean();
+        }
     }
     else
     {
-        if(ERROR == changeState(GST_STATE_PLAYING))
-        {
-            qDebug() << "Playing Failed";
-
-            return ERROR;
+        if(mPlay){
+            if(ERROR == changeState(GST_STATE_PLAYING))
+            {
+                qDebug() << "Playing Failed";
+                clean();
+            }
         }
     }
-
-    return OK;
 }
 
 QString VideoCapture::createPipeline()
@@ -87,7 +93,7 @@ int VideoCapture::launchPipeline(QString pPipeline)
 
     mPipeline = gst_parse_launch(pPipeline.toStdString().c_str(), &lError);
 
-    if(ERROR == printError(lError))
+    if(ERROR == printError(lError) || !mPipeline)
     {
         return ERROR;
     }
@@ -172,11 +178,11 @@ void VideoCapture::retrieveFrame()
 
                 if (gst_buffer_map(lBuf, &lInfo, GST_MAP_READ))
                 {
-                    lImage = QImage(QImage(lInfo.data, mWidth, mHeight, QImage::Format::Format_RGB888));
+                    lImage = QImage(lInfo.data, mWidth, mHeight, QImage::Format::Format_RGB888, VideoCapture::cleanImageBuffer, lBuf);
 
                     emit onNewFrame(lImage);
                 }
-
+                gst_buffer_ref(lBuf);
                 gst_buffer_unmap(lBuf, &lInfo);
             }
 
@@ -190,6 +196,11 @@ void VideoCapture::retrieveFrame()
 
             emit onNewFrame(lImage);
         }
+    }
+
+    if(ERROR == changeState(GST_STATE_NULL))
+    {
+        qDebug() << "Closing Failed";
     }
 
     clean();
@@ -237,11 +248,6 @@ int VideoCapture::changeState(int pState)
 
 void VideoCapture::clean()
 {
-    if(ERROR == changeState(GST_STATE_NULL))
-    {
-        qDebug() << "Closing Failed";
-    }
-
     gst_object_unref (mPipeline);
     gst_object_unref (mAppSink);
 
@@ -259,13 +265,15 @@ int VideoCapture::init()
     if(ERROR == launchPipeline(createPipeline()))
     {
         qDebug() << "Pipeline Launch Error";
-        clean();
         return ERROR;
     }
 
     printVideoInfo();
 
-    if(ERROR == checkStream()) return ERROR;
+    if(ERROR == checkStream()){
+        changeState(GST_STATE_NULL);
+        return ERROR;
+    }
 
     mPlay = true;
 

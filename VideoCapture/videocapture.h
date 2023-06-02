@@ -14,8 +14,8 @@ public:
     ~VideoCapture();
 
 public slots:
-    int play(int pDeviceNumber);
-    int pause();
+    void play(int pDeviceNumber);
+    void pause();
     void close();
 
 protected:
@@ -30,6 +30,7 @@ private:
     int printError(void *pError);
     int checkStream();
     void checkRefCount();
+    static void cleanImageBuffer(void *pImageBuffer);
 
 private slots:
     void retrieveFrame();

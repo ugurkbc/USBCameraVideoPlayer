@@ -15,10 +15,6 @@ public:
     explicit ImageWidget(QWidget *parent = nullptr);
     ~ImageWidget();
 
-    void fillBlack();
-    void disableUpdate();
-    void enableUpdate();
-
 private:
     QImage mImage;
     QMutexLocker *mLocker;

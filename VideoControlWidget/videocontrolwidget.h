@@ -17,7 +17,12 @@ public:
     explicit VideoControlWidget(VideoCapture *pVideoCapture, ImageWidget *pImageWidget, QWidget *parent = 0);
     ~VideoControlWidget();
 
+private:
+    void close();
+
+private slots:
     void stateChanged(int pVideoState);
+
 private slots:
     void on_pushButton_video_play_stop_clicked();
     void on_pushButton_video_close_clicked();

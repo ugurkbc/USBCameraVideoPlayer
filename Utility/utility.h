@@ -10,6 +10,15 @@ enum OKERROR_STATUS
     ERROR = -1
 };
 
+enum VideoState{
+    PENDING_ = 0,
+    NULL_ = 1,
+    READY_ = 2,
+    PAUSED_ = 3,
+    PLAYING_ = 4
+};
+
+
 
 class Utility
 {
