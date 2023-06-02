@@ -34,7 +34,6 @@ void VideoControlWidget::stateChanged(int pVideoState)
     if(mState == VideoState::PLAYING_)
     {
         ui->pushButton_video_play_stop->setText("Pause");
-
     }
     else if(mState == VideoState::PAUSED_)
     {
@@ -54,11 +53,11 @@ void VideoControlWidget::on_pushButton_video_play_stop_clicked()
     }
     else
     {
-        bool tFlag;
+        bool lFlag;
 
-        int lNum =  ui->lineEdit_device_number->text().toInt(&tFlag);
+        int lNum =  ui->lineEdit_device_number->text().toInt(&lFlag);
 
-        if(tFlag)
+        if(lFlag)
         {
             mVideoCapture->play(lNum);
         }

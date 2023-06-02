@@ -115,47 +115,10 @@ int VideoCapture::launchPipeline(QString pPipeline)
 
 void VideoCapture::printVideoInfo()
 {
-    GstPad *lPad = nullptr;
-
-    if(!(lPad = gst_element_get_static_pad((GstElement *)mAppSink, "sink")))
-    {
-        qDebug() << "Error gst_element_get_static_pad";
-        return;
-    }
-
-    GstCaps *lCaps = nullptr;
-
-    if(!(lCaps = gst_pad_get_current_caps(lPad)))
-    {
-        qDebug() << "Error gst_pad_get_current_caps";
-        return;
-    }
-
-    GstStructure *lStructure = nullptr;
-
-    if(!(lStructure = gst_caps_get_structure(lCaps, 0)))
-    {
-        qDebug() << "Error gst_caps_get_structure";
-        return;
-    }
-
-    gst_structure_get_int (lStructure, "width", &mWidth);
-    gst_structure_get_int (lStructure, "height", &mHeight);
-
-    int lNum = 0, lDenom=1;
-    gst_structure_get_fraction(lStructure, "framerate", &lNum, &lDenom);
-    mFPS = (double)lNum / (double)lDenom;
-
-    const gchar* lFormat = gst_structure_get_string(lStructure, "format");
-
-    mFormat = QString(lFormat);
-
     qDebug() << "Video Format: " << mFormat;
     qDebug() << "Video Width: " << mWidth;
     qDebug() << "Video Height: " << mHeight;
     qDebug() << "Video FPS: " << mFPS;
-
-    gst_object_unref(lPad);
 }
 
 void VideoCapture::retrieveFrame()
@@ -170,6 +133,8 @@ void VideoCapture::retrieveFrame()
 
         if(lSample)
         {
+            getVideoInfo(lSample);
+
             GstBuffer *lBuf = gst_sample_get_buffer(lSample);
 
             if(lBuf)
@@ -179,7 +144,7 @@ void VideoCapture::retrieveFrame()
                 if (gst_buffer_map(lBuf, &lInfo, GST_MAP_READ))
                 {
                     lImage = QImage(lInfo.data, mWidth, mHeight, QImage::Format::Format_RGB888, VideoCapture::cleanImageBuffer, lBuf);
-
+                    lImage.setText("fps", QString::number(mFPS));
                     emit onNewFrame(lImage);
                 }
                 gst_buffer_ref(lBuf);
@@ -188,15 +153,21 @@ void VideoCapture::retrieveFrame()
 
             gst_sample_unref(lSample);
         }
-        else
+        else if(gst_app_sink_is_eos(GST_APP_SINK(mAppSink)))
         {
-            lImage =  QImage(mWidth, mHeight, QImage::Format::Format_RGB888);
-
-            lImage.fill(Qt::black);
-
-            emit onNewFrame(lImage);
+            qDebug() << "Error EOS Appsink";
+            break;
+        }
+        else{
+            break;
         }
     }
+
+    lImage =  QImage(mWidth, mHeight, QImage::Format::Format_RGB888);
+
+    lImage.fill(Qt::black);
+
+    emit onNewFrame(lImage);
 
     if(ERROR == changeState(GST_STATE_NULL))
     {
@@ -268,12 +239,8 @@ int VideoCapture::init()
         return ERROR;
     }
 
+    getVideoInfo();
     printVideoInfo();
-
-    if(ERROR == checkStream()){
-        changeState(GST_STATE_NULL);
-        return ERROR;
-    }
 
     mPlay = true;
 
@@ -302,4 +269,72 @@ int VideoCapture::checkStream()
     }
 
     return OK;
+}
+
+void VideoCapture::getVideoInfo(void *pSample)
+{
+    GstCaps *lCaps = nullptr;
+
+    if(!(lCaps = gst_sample_get_caps((GstSample *)pSample)))
+    {
+        qDebug() << "Error gst_pad_get_current_caps";
+        return;
+    }
+
+    GstStructure *lStructure = nullptr;
+
+    if(!(lStructure = gst_caps_get_structure(lCaps, 0)))
+    {
+        qDebug() << "Error gst_caps_get_structure";
+        return;
+    }
+
+    gst_structure_get_int (lStructure, "width", &mWidth);
+    gst_structure_get_int (lStructure, "height", &mHeight);
+
+    int lNum = 0, lDenom=1;
+    gst_structure_get_fraction(lStructure, "framerate", &lNum, &lDenom);
+    mFPS = (double)lNum / (double)lDenom;
+
+    const gchar* lFormat = gst_structure_get_string(lStructure, "format");
+
+    mFormat = QString(lFormat);
+}
+
+void VideoCapture::getVideoInfo()
+{
+    GstPad *lPad = nullptr;
+
+    if(!(lPad = gst_element_get_static_pad((GstElement *)mAppSink, "sink")))
+    {
+       qDebug() << "Error gst_element_get_static_pad";
+       return;
+    }
+
+    GstCaps *lCaps = nullptr;
+
+    if(!(lCaps = gst_pad_get_current_caps(lPad)))
+    {
+       qDebug() << "Error gst_pad_get_current_caps";
+       return;
+    }
+
+    GstStructure *lStructure = nullptr;
+
+    if(!(lStructure = gst_caps_get_structure(lCaps, 0)))
+    {
+       qDebug() << "Error gst_caps_get_structure";
+       return;
+    }
+
+    gst_structure_get_int (lStructure, "width", &mWidth);
+    gst_structure_get_int (lStructure, "height", &mHeight);
+
+    int lNum = 0, lDenom=1;
+    gst_structure_get_fraction(lStructure, "framerate", &lNum, &lDenom);
+    mFPS = (double)lNum / (double)lDenom;
+
+    const gchar* lFormat = gst_structure_get_string(lStructure, "format");
+
+    mFormat = QString(lFormat);
 }

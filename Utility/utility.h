@@ -18,8 +18,6 @@ enum VideoState{
     PLAYING_ = 4
 };
 
-
-
 class Utility
 {
 public:

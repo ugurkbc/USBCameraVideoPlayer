@@ -30,6 +30,8 @@ private:
     int printError(void *pError);
     int checkStream();
     void checkRefCount();
+    void getVideoInfo(void *pSample);
+    void getVideoInfo();
     static void cleanImageBuffer(void *pImageBuffer);
 
 private slots:
