@@ -159,7 +159,10 @@ void VideoCapture::retrieveFrame()
             break;
         }
         else{
-            break;
+            if(mState != GST_STATE_PAUSED){
+                break;
+            }
+
         }
     }
 
@@ -211,6 +214,8 @@ int VideoCapture::changeState(int pState)
             return ERROR;
         }
     }
+
+    mState = lCurrentState;
 
     emit onStateChange(lCurrentState);
 

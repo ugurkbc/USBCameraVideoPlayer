@@ -47,6 +47,7 @@ private:
     double mFPS = INVALID;
     QString mFormat = "";
     bool mPlay = false;
+    int mState = 0;
 
 private:
     static const QString PREFIX_DEVICE_PATH;
