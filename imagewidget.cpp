@@ -6,14 +6,13 @@
 
 ImageWidget::ImageWidget(QWidget *parent)
     : QWidget(parent)
+    , mLocker(&mMutex)
 {
-    mLocker = new QMutexLocker(&mMutex);
 }
 
 ImageWidget::~ImageWidget()
 {
-    mLocker->unlock();
-    delete mLocker;
+    mLocker.unlock();
 }
 
 void ImageWidget::paintEvent(QPaintEvent *event)
@@ -24,11 +23,13 @@ void ImageWidget::paintEvent(QPaintEvent *event)
     lPainter.drawImage((rect().bottomRight() - mImage.rect().bottomRight()) / 2, mImage);
 
     emit onNewFrame(mImage);
+
+    mLocker.unlock();
 }
 
 void ImageWidget::newImage(QImage pImage)
 {
-    mLocker->relock();
+    mLocker.relock();
 
     mImage = pImage;
 

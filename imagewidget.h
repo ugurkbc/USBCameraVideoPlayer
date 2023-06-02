@@ -17,8 +17,9 @@ public:
 
 private:
     QImage mImage;
-    QMutexLocker *mLocker;
     QMutex mMutex;
+    QMutexLocker mLocker;
+
 
 protected:
     void paintEvent(QPaintEvent *event) override;
