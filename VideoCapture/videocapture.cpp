@@ -188,31 +188,23 @@ int VideoCapture::changeState(int pState)
 
     GstState lCurrentState;
 
-    while(true){
-        GstStateChangeReturn lStateChange = gst_element_get_state((GstElement *)mPipeline, &lCurrentState, nullptr, GST_CLOCK_TIME_NONE);
+    GstStateChangeReturn lStateChange = gst_element_get_state((GstElement *)mPipeline, &lCurrentState, nullptr, GST_CLOCK_TIME_NONE);
 
-        if(lStateChange == GST_STATE_CHANGE_FAILURE)
-        {
-            qDebug() << "GST_STATE_CHANGE_FAILURE";
-            return ERROR;
-        }
-        else if (lStateChange == GST_STATE_CHANGE_SUCCESS)
-        {
-            qDebug() << "GST_STATE_CHANGE_SUCCESS";
-            break;
-        }
-        else if (lStateChange == GST_STATE_CHANGE_ASYNC)
-        {
-            qDebug() << "GST_STATE_CHANGE_ASYNC";
-        }
-        else if (lStateChange == GST_STATE_CHANGE_NO_PREROLL)
-        {
-            qDebug() << "GST_STATE_CHANGE_NO_PREROLL";
-            break;
-        }
-        else{
-            return ERROR;
-        }
+    if(lStateChange == GST_STATE_CHANGE_FAILURE)
+    {
+        qDebug() << "GST_STATE_CHANGE_FAILURE";
+        return ERROR;
+    }
+    else if (lStateChange == GST_STATE_CHANGE_SUCCESS)
+    {
+        qDebug() << "GST_STATE_CHANGE_SUCCESS";
+    }
+    else if (lStateChange == GST_STATE_CHANGE_NO_PREROLL)
+    {
+        qDebug() << "GST_STATE_CHANGE_NO_PREROLL";
+    }
+    else{
+        return ERROR;
     }
 
     mState = lCurrentState;
