@@ -13,8 +13,6 @@ public:
     explicit VideoWriter(QObject *parent = nullptr);
     ~VideoWriter();
 
-    int play(QString pFileName, int pWidth, int pHeight, double pFPS);
-    void close();
 private:
     QString createPipeline();
     int launchPipeline(QString pPipeline);
@@ -26,6 +24,8 @@ private:
 
 public slots:
     void recording(QImage pFrame);
+    void play(QString pFileName, int pWidth, int pHeight, double pFPS);
+    void close();
 
 private:
     QThread mThread;
@@ -39,6 +39,7 @@ private:
     int mNumFrames = 0;
     int mFPSNum = INVALID;
     int mFPSDenom = INVALID;
+    int mState = 0;
 
 private:
     static const QString PATH;

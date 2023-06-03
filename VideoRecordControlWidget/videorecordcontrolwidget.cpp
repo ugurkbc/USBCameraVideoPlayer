@@ -3,14 +3,7 @@
 #include <imagewidget.h>
 #include <VideoWriter/videowriter.h>
 #include <QDebug>
-
-enum VideoState{
-PENDING_ = 0,
-NULL_ = 1,
-READY_ = 2,
-PAUSED_ = 3,
-PLAYING_ = 4
-};
+#include <Utility/utility.h>
 
 VideoRecordControlWidget::VideoRecordControlWidget(VideoWriter *pVideoWriter, ImageWidget *pImageWidget, QWidget *parent) :
     QWidget(parent),
@@ -20,7 +13,7 @@ VideoRecordControlWidget::VideoRecordControlWidget(VideoWriter *pVideoWriter, Im
 {
     ui->setupUi(this);
 
-    connect(mVideoWriter, &VideoWriter::onStateChange, this, &VideoRecordControlWidget::stateChanged, Qt::DirectConnection);
+    connect(mVideoWriter, &VideoWriter::onStateChange, this, &VideoRecordControlWidget::stateChanged, Qt::QueuedConnection);
 }
 
 VideoRecordControlWidget::~VideoRecordControlWidget()
@@ -41,20 +34,16 @@ void VideoRecordControlWidget::stateChanged(int pVideoState)
     else
     {
         ui->pushButton_play_stop_record->setEnabled(true);
-
-        disconnect(mImageWidget, &ImageWidget::onNewFrame, mVideoWriter, &VideoWriter::recording);
     }
 }
 
 void VideoRecordControlWidget::on_pushButton_close_record_clicked()
 {
-    mVideoWriter->close();
+    disconnect(mImageWidget, &ImageWidget::onNewFrame, mVideoWriter, &VideoWriter::recording);
+    QMetaObject::invokeMethod(mVideoWriter, "close");
 }
 
 void VideoRecordControlWidget::on_pushButton_play_stop_record_clicked()
 {
-    if(!mVideoWriter->play(ui->lineEdit_file_name->text(), 1280, 960, 7.5))
-    {
-        qDebug() << "Error Init VideoWriter";
-    }
+    QMetaObject::invokeMethod(mVideoWriter, "play", Qt::QueuedConnection, Q_ARG(QString, ui->lineEdit_file_name->text()), Q_ARG(int, 1280), Q_ARG(int, 960), Q_ARG(double,  7.5));
 }

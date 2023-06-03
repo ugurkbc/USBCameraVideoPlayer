@@ -33,14 +33,14 @@ VideoWriter::~VideoWriter()
     mThread.wait();
 }
 
-int VideoWriter::play(QString pFileName, int pWidth, int pHeight, double pFPS)
+void VideoWriter::play(QString pFileName, int pWidth, int pHeight, double pFPS)
 {
     if(!mPipeline)
     {
         if(pFileName.contains(".") || pFileName == "" || pWidth <= 0 || pHeight <= 0, pFPS <= 0)
         {
             qDebug() << "INVALID Input Parameters";
-            return ERROR;
+            return;
         }
 
         mFileName = pFileName + MEDIA_TYPE;
@@ -55,18 +55,8 @@ int VideoWriter::play(QString pFileName, int pWidth, int pHeight, double pFPS)
 
         printVideoInfo();
 
-        if(ERROR == init()) return ERROR;
+        if(ERROR == init()) return;
     }
-    else
-    {
-        if(ERROR == changeState(GST_STATE_PLAYING))
-        {
-            qDebug() << "Playing Failed";
-            return ERROR;
-        }
-    }
-
-    return OK;
 }
 
 void VideoWriter::close()
@@ -77,6 +67,8 @@ void VideoWriter::close()
     {
          qDebug() << "Cannot send EOS to GStreamer pipeline";
     }
+
+    QThread::msleep(1);
 
     changeState(GST_STATE_NULL);
 
@@ -96,7 +88,7 @@ int VideoWriter::launchPipeline(QString pPipeline)
 
     mPipeline = gst_parse_launch(pPipeline.toStdString().c_str(), &lError);
 
-    if(!printError(lError)) return ERROR;
+    if(ERROR == printError(lError)) return ERROR;
 
     if(!(mAppSrc = gst_bin_get_by_name(GST_BIN(mPipeline), APPSRC_NAME.toStdString().c_str())))
     {
@@ -108,13 +100,14 @@ int VideoWriter::launchPipeline(QString pPipeline)
     g_object_set(G_OBJECT(mAppSrc), "block", 1, NULL);
     g_object_set(G_OBJECT(mAppSrc), "is-live", 0, NULL);
 
-    if(ERROR == changeState(GST_STATE_PLAYING)) return ERROR;
+    if(ERROR == changeState(GST_STATE_READY)) return ERROR;
 
     return OK;
 }
 
 void VideoWriter::printVideoInfo()
 {
+    qDebug() << "Video File:" << mFileName;
     qDebug() << "Video Format: " << mFormat;
     qDebug() << "Video Width: " << mWidth;
     qDebug() << "Video Height: " << mHeight;
@@ -129,7 +122,30 @@ int VideoWriter::changeState(int pState)
 
     GstState lCurrentState;
 
-    gst_element_get_state((GstElement *)mPipeline, &lCurrentState, nullptr, 0);
+    GstStateChangeReturn lStateChange = gst_element_get_state((GstElement *)mPipeline, &lCurrentState, nullptr, GST_CLOCK_TIME_NONE);
+
+    if(lStateChange == GST_STATE_CHANGE_FAILURE)
+    {
+        qDebug() << "GST_STATE_CHANGE_FAILURE";
+        return ERROR;
+    }
+    else if (lStateChange == GST_STATE_CHANGE_SUCCESS)
+    {
+        qDebug() << "GST_STATE_CHANGE_SUCCESS";
+    }
+    else if (lStateChange == GST_STATE_CHANGE_NO_PREROLL)
+    {
+        qDebug() << "GST_STATE_CHANGE_NO_PREROLL";
+    }
+    else{
+        return ERROR;
+    }
+
+    if(pState == GST_STATE_READY){
+        gst_element_set_state(GST_ELEMENT(mPipeline), GST_STATE_PLAYING);
+    }
+
+    mState = lCurrentState;
 
     emit onStateChange(lCurrentState);
 
@@ -138,10 +154,8 @@ int VideoWriter::changeState(int pState)
 
 void VideoWriter::clean()
 {
-    while(GST_OBJECT_REFCOUNT_VALUE(mPipeline))
-    {
-        gst_object_unref(mPipeline);
-    }
+    gst_object_unref (mAppSrc);
+    gst_object_unref (mPipeline);
 
     mPipeline = nullptr;
     mAppSrc = nullptr;
@@ -153,7 +167,7 @@ void VideoWriter::clean()
 
 int VideoWriter::init()
 {
-    if(!launchPipeline(createPipeline()))
+    if(ERROR == launchPipeline(createPipeline()))
     {
         qDebug() << "Pipeline Launch Error";
         clean();
