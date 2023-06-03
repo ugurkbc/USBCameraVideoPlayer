@@ -5,7 +5,7 @@
 
 class VideoCapture;
 class ImageWidget;
-class VideoControlWidget;
+class VideoCaptureControlWidget;
 class VideoRecordControlWidget;
 class VideoWriter;
 
@@ -26,7 +26,7 @@ private:
     VideoCapture *mVideoCapture;
     VideoWriter *mVideoWriter;
     ImageWidget *mImageWidget;
-    VideoControlWidget *mVideoCaptureControlWidget;
+    VideoCaptureControlWidget *mVideoCaptureControlWidget;
     VideoRecordControlWidget *mVideoRecordControlWidget;
 };
 

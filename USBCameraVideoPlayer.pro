@@ -28,23 +28,23 @@ SOURCES += \
         mainwindow.cpp \
         VideoCapture/videocapture.cpp \
     imagewidget.cpp \
-    VideoControlWidget/videocontrolwidget.cpp \
     VideoWriter/videowriter.cpp \
-    VideoRecordControlWidget/videorecordcontrolwidget.cpp
+    VideoRecordControlWidget/videorecordcontrolwidget.cpp \
+    VideoCaptureControlWidget/videocapturecontrolwidget.cpp
 
 HEADERS += \
         mainwindow.h \
         VideoCapture/videocapture.h \
     imagewidget.h \
-    VideoControlWidget/videocontrolwidget.h \
     VideoWriter/videowriter.h \
     Utility/utility.h \
-    VideoRecordControlWidget/videorecordcontrolwidget.h
+    VideoRecordControlWidget/videorecordcontrolwidget.h \
+    VideoCaptureControlWidget/videocapturecontrolwidget.h
 
 FORMS += \
         mainwindow.ui \
-    VideoControlWidget/videocontrolwidget.ui \
-    VideoRecordControlWidget/videorecordcontrolwidget.ui
+    VideoRecordControlWidget/videorecordcontrolwidget.ui \
+    VideoCaptureControlWidget/videocapturecontrolwidget.ui
 
 
 unix: CONFIG += link_pkgconfig

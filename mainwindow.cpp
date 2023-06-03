@@ -2,7 +2,7 @@
 #include "ui_mainwindow.h"
 #include <VideoCapture/videocapture.h>
 #include <imagewidget.h>
-#include <VideoControlWidget/videocontrolwidget.h>
+#include <VideoCaptureControlWidget/videocapturecontrolwidget.h>
 #include <VideoRecordControlWidget/videorecordcontrolwidget.h>
 #include <VideoWriter/videowriter.h>
 
@@ -15,7 +15,7 @@ MainWindow::MainWindow(QWidget *parent) :
     mVideoCapture = new VideoCapture();
     mVideoWriter = new VideoWriter();
     mImageWidget = new ImageWidget();
-    mVideoCaptureControlWidget = new VideoControlWidget(mVideoCapture, mImageWidget);
+    mVideoCaptureControlWidget = new VideoCaptureControlWidget(mVideoCapture, mImageWidget);
     mVideoRecordControlWidget = new VideoRecordControlWidget(mVideoWriter, mImageWidget);
 
     ui->verticalLayout_videoarea->addWidget(mImageWidget);
