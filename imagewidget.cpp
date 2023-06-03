@@ -12,7 +12,6 @@ ImageWidget::ImageWidget(QWidget *parent)
 
 ImageWidget::~ImageWidget()
 {
-    mLocker.unlock();
 }
 
 void ImageWidget::paintEvent(QPaintEvent *event)
