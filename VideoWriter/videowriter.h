@@ -5,6 +5,7 @@
 #include <QThread>
 #include <QString>
 #include <QImage>
+#include <QTimer>
 
 class VideoWriter : public QObject
 {
@@ -21,14 +22,18 @@ private:
     void clean();
     int init();
     int printError(void *pError);
+private slots:
+    void pushImage();
 
 public slots:
-    void recording(QImage pFrame);
+    void recording(QImage pImage);
     void play(QString pFileName, int pWidth, int pHeight, double pFPS);
     void close();
 
 private:
     QThread mThread;
+    QTimer mTimer;
+    QImage mImageRecord;
     void *mAppSrc = nullptr;
     void *mPipeline = nullptr;
     QString mFileName = "";

@@ -10,10 +10,12 @@ const QString VideoWriter::MEDIA_TYPE = ".mp4";
 const QString VideoWriter::APPSRC_NAME = "mysrc";
 extern bool GST_INIT; // definition videocapture.cpp
 
-VideoWriter::VideoWriter(QObject *parent) : QObject(parent)
+VideoWriter::VideoWriter(QObject *parent) : QObject(parent), mTimer(this)
 {
     this->moveToThread(&mThread);
     mThread.start();
+
+    connect(&mTimer, &QTimer::timeout, this, &VideoWriter::pushImage);
 
     if(!GST_INIT)
     {
@@ -43,6 +45,10 @@ void VideoWriter::play(QString pFileName, int pWidth, int pHeight, double pFPS)
             return;
         }
 
+        mImageRecord = QImage(pWidth, pHeight, QImage::Format::Format_RGB888);
+
+        mImageRecord.fill(Qt::black);
+
         mFileName = pFileName + MEDIA_TYPE;
         mWidth = pWidth;
         mHeight = pHeight;
@@ -53,14 +59,20 @@ void VideoWriter::play(QString pFileName, int pWidth, int pHeight, double pFPS)
         mFPSNum = lFPSNum;
         mFPSDenom = lFPSDenom;
 
+        int lInterval = (1 / pFPS) * 1000;
+
+        mTimer.setInterval(lInterval);
+
         printVideoInfo();
 
-        if(ERROR == init()) return;
+        if(OK == init()) mTimer.start();
     }
 }
 
 void VideoWriter::close()
 {
+    mTimer.stop();
+
     if(!mPipeline) return;
 
     if(gst_app_src_end_of_stream((GstAppSrc *)mAppSrc) != GST_FLOW_OK)
@@ -188,12 +200,14 @@ int VideoWriter::printError(void *pError)
     return OK;
 }
 
-void VideoWriter::recording(QImage pFrame)
+void VideoWriter::pushImage()
 {
     if(!mAppSrc) return;
 
+    if(mImageRecord.isNull()) return;
+
     GstClockTime lDuration, lTimeStamp;
-    int lSize = pFrame.byteCount();
+    int lSize = mImageRecord.byteCount();
 
     lDuration = ((double) 1 / mFPS) * GST_SECOND;
     lTimeStamp = mNumFrames * lDuration;
@@ -201,7 +215,7 @@ void VideoWriter::recording(QImage pFrame)
     GstBuffer *lBuffer = gst_buffer_new_allocate(nullptr, lSize, nullptr);
     GstMapInfo lInfo;
     gst_buffer_map(lBuffer, &lInfo, (GstMapFlags)GST_MAP_READ);
-    memcpy(lInfo.data, (guint8*)pFrame.bits(), lSize);
+    memcpy(lInfo.data, (guint8*)mImageRecord.bits(), lSize);
     gst_buffer_unmap(lBuffer, &lInfo);
 
     GST_BUFFER_DURATION(lBuffer) = lDuration;
@@ -213,4 +227,9 @@ void VideoWriter::recording(QImage pFrame)
     {
         ++mNumFrames;
     }
+}
+
+void VideoWriter::recording(QImage pImage)
+{
+    mImageRecord = pImage;
 }
